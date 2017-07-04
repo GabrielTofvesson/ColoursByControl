@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.v4.widget.NestedScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    app:layout_behavior="@string/appbar_scrolling_view_behavior"
+    tools:context="net.tofvesson.coloursbycontrol.activity.ScrollingActivity"
+    tools:showIn="@layout/activity_scrolling">
+    <net.tofvesson.coloursbycontrol.view.LinearActionLayout
+        android:id="@+id/instructions"
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="120dp"
+        android:paddingLeft="120dp"
+        android:paddingEnd="120dp"
+        android:paddingRight="120dp"
+        android:paddingBottom="40dp"
+        android:paddingTop="40dp"
+        android:gravity="center_horizontal">
+        <net.tofvesson.coloursbycontrol.view.StartIcon
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            app:color="?colorPrimary"
+            app:backgroundColor="?colorPrimaryDark"
+            app:textColor="?colorAccent"/>
+        <net.tofvesson.coloursbycontrol.view.StackPushCard
+            android:id="@+id/stackPush"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/start_margin"
+            app:color="?colorPrimary"
+            app:accentColor="?colorAccent" />
+        <net.tofvesson.coloursbycontrol.view.FunctionCard
+            android:id="@+id/test"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/start_margin"
+            app:color="?colorPrimary"
+            app:accentColor="?colorAccent"
+            app:name="Show Snackbar"/>
+    </net.tofvesson.coloursbycontrol.view.LinearActionLayout>
+
+</android.support.v4.widget.NestedScrollView>

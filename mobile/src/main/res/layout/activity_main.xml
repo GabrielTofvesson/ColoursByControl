@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context="net.tofvesson.coloursbycontrol.activity.MainActivity"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?colorPrimaryDark">
+
+    <net.tofvesson.coloursbycontrol.view.WelcomeView
+        android:id="@+id/welcome"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:layout_centerInParent="true"
+        app:color="?colorAccent"
+        app:backgroundColor="?colorPrimaryDark"/>
+
+    <Button
+        android:id="@+id/newProj"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_above="@+id/openProj"
+        android:background="?colorAccent"
+        android:padding="16sp"
+        android:text="New project"
+        android:textSize="16sp"/>
+    <Button
+        android:id="@id/openProj"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:background="?colorAccent"
+        android:padding="16dp"
+        android:text="Open project"
+        android:textSize="16sp"/>
+</RelativeLayout>
