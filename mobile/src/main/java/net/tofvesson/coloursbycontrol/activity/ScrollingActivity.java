@@ -12,14 +12,29 @@ import android.widget.Toast;
 import net.tofvesson.coloursbycontrol.CodeCtx;
 import net.tofvesson.coloursbycontrol.R;
 import net.tofvesson.coloursbycontrol.view.StackPushCard;
+
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.Stack;
-import static net.tofvesson.coloursbycontrol.Operations.*;
 
 public class ScrollingActivity extends AppCompatActivity {
 
     static{
         System.loadLibrary("lib-tlang");
         System.loadLibrary("lib-tlang-cbc");
+    }
+
+    public static Class<?> loadClass(byte[] code, ClassLoader loadInto) throws InvocationTargetException
+    {
+        try {
+            Method m = ClassLoader.class.getDeclaredMethod("defineClass", byte[].class, int.class, int.class);
+            m.setAccessible(true); // Make sure we can invoke the method
+            return (Class<?>) m.invoke(loadInto, code, 0, code.length);
+        }
+        // An exception should only be thrown if the bytecode is invalid
+        // or a class with the same name is already loaded
+        catch (NoSuchMethodException e) { throw new RuntimeException(e); }
+        catch (IllegalAccessException e){ throw new RuntimeException(e); }
     }
 
     @Override
@@ -29,8 +44,6 @@ public class ScrollingActivity extends AppCompatActivity {
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-
-        System.out.println(void.class);
 
         final CodeCtx ctx = new CodeCtx("RunMe",
                 new String[]{ "Hello World", "makeText", Toast.class.getName(), "show" }, // Constant pool
@@ -45,13 +58,12 @@ public class ScrollingActivity extends AppCompatActivity {
                                 2, 2,
                                 3, 3,
                                 2, 3,
-                                3, 0
+                                2, 2,
+                                3, 0,
+                                2, 0
                         }
         );
         System.out.println(ctx.eval(new Stack<>(), new Object[]{ this }));
-
-
-
 
 
 

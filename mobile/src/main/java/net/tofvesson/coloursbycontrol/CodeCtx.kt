@@ -1,6 +1,7 @@
 package net.tofvesson.coloursbycontrol
 
 import java.lang.reflect.Method
+import java.lang.reflect.Modifier
 import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
@@ -103,51 +104,19 @@ infix fun <K, V> HashMap<K, V>.containsKeyI(key: K) = containsKey(key)
 fun Any?.asBoolean(): Boolean =
         if(this==null) false else this as? Boolean ?: if((this.toString() == "true") or (this.toString() == "false")) this.toString().toBoolean() else !((this.toString()=="0") or (this.toString()=="0.0"))
 fun Any?.asDouble(): Double = if(this==null) 0.0 else (this as? Number ?: try{ this.toString().toDouble() }catch(e: NumberFormatException){ 0.0 }).toDouble()
-infix fun Any?.matchesClass(other: Class<*>): Boolean =
-        (other.isPrimitive && this!=null && this.javaClass==other) || (this==null && !other.isPrimitive) || (this!=null && other.javaClass.isAssignableFrom(this.javaClass))
 
 fun exception(stack: Stack<CodeCtx>, reason: String?): RuntimeException =
         RuntimeException((reason ?: "")+"  Trace: "+Arrays.toString(stack.toArray())+
                 (if(stack.size>0) " at "+stack[stack.size-1].operators[stack[stack.size-1].stackPointer].ordinal+" ("+stack[stack.size-1].operators[stack[stack.size-1].stackPointer].name+")" else ""))
 @Suppress("UNCHECKED_CAST")
 infix fun <T: Number, K: Number> K.toNumber(type: Class<in T>): T =
-        (if(type==Byte::class) this.toByte()
-        else if(type==Short::class) this.toShort()
-        else if(type==Integer::class) this.toInt()
-        else if(type==Long::class) this.toLong()
-        else if(type==Float::class) this.toFloat()
-        else if(type==Double::class) this.toDouble()
+        (if(type==Byte::class.java || type==Byte::class) this.toByte()
+        else if(type==Short::class.java || type==Short::class) this.toShort()
+        else if(type==Integer::class.java || type==Integer::class) this.toInt()
+        else if(type==Long::class.java || type==Long::class) this.toLong()
+        else if(type==Float::class.java || type==Float::class) this.toFloat()
+        else if(type==Double::class.java || type==Double::class) this.toDouble()
         else this) as T
-fun getMatchingMethod(name: String, paramCount: Int, clazz: Class<*>, paramTypes: Array<Any?>): Method? {
-    @Suppress("UNCHECKED_CAST")
-    val methods = ArrayList<Method>()
-    clazz.declaredMethods.forEach { if(it.name == name && it.parameterTypes.size == paramCount) methods.add(it) }
-    OUTER@
-    for(method in methods){
-        var i = -1
-        for(clasz in method.parameterTypes)
-            if(!((paramTypes[++i] matchesClass String::class.java && (
-                    (clasz==Double::class.java) ||
-                            (clasz==Integer::class.java) ||
-                            (clasz==Float::class.java) ||
-                            (clasz==Long::class.java) ||
-                            (clasz==Short::class.java) ||
-                            (clasz==Byte::class.java) ||
-                            (clasz==Character::class.java) ||
-                            (clasz==Boolean::class.java))) ||
-                    ((paramTypes[i]!=null && clasz.isAssignableFrom(paramTypes[i]!!.javaClass)) || ((paramTypes[i]==null) && (!clasz.isPrimitive))) || (clasz == String::class)))
-                continue@OUTER
-        return method
-    }
-    return null
-}
-
-infix fun Array<Any?>.toRequiredTypes(types: Array<Class<*>>): Array<Any?> =  Array(this.size, {
-        index -> run{
-            if(this[index] matchesClass types[index]) this[index]
-            else if(Number::class.java.isAssignableFrom(types[index])) (this[index] as Number) toNumber types[index]
-            else this[index].toString()
-        }})
 
 enum class Operations: Operation{
     LDV{ // Load variable
@@ -194,10 +163,15 @@ enum class Operations: Operation{
             val caller = stack[stack.size-1]
             val c = Class.forName(params[0].toString())
             if(params[2].toString().toInt() > caller.operands.size) throw exception(stack, "Operand stack underflow! Required parameter count: "+params[2].toString())
-            val callParams = Array(params[2].toString().toInt(), { caller.operands.pop() })
-            val callMethod = getMethod(callParams, params[1].toString(), c) ?: throw exception(stack, "Cannot find Method named \""+params[1]+"\"")
+            var callParams = Array(params[2].toString().toInt(), { caller.operands.pop() })
+            val callMethod = getMethod(callParams, params[1].toString(), c, -1) ?: throw exception(stack, "Cannot find Method named \""+params[1]+"\"")
+            if(!Modifier.isStatic(callMethod.modifiers)){
+                if(caller.operands.isEmpty()) throw exception(stack, "Operand stack underflow! Required parameter count: "+params[2].toString() + " (plus 1 object to call on) ")
+                callParams = arrayOf(caller.operands.pop(), *callParams)
+            }
             caller.popFlag = callMethod.returnType==Void.TYPE
-            return invoke(callMethod, callParams)
+            val v = invoke(callMethod, callParams)
+            return v
         }
         override fun getPairCount(): Int = 1
     },
@@ -325,26 +299,40 @@ enum class Operations: Operation{
 /**
  * Selects the most plausible method that caller is trying to get based on method name, parameters and owning class etc.
  */
-fun getMethod(params: Array<Any?>, name: String, owner: Class<*>): Method? {
+fun getMethod(params: Array<Any?>, name: String, owner: Class<*>, searchMask: Int): Method? {
     val allMethods = ArrayList<Method>()
-    var cur = owner
-    while(cur!=Object::javaClass){
+    var cur: Class<*>? = null
+    while(true){
+        cur = if(cur==null) owner else cur.superclass
+        if(cur==null) break
         cur.declaredMethods.filterNot {
-            it.name != name || allMethods.contains(it) || (it.parameterTypes.size<params.size && (it.modifiers and 8==0)) || (it.parameterTypes.size<params.size-1 && (it.modifiers and 8==1))
+            (searchMask!=-1 && it.parameterTypes.size!=searchMask) ||
+                    it.name != name ||
+                    allMethods.contains(it) ||
+                    (it.parameterTypes.size<params.size && Modifier.isStatic(it.modifiers)) ||
+                    (it.parameterTypes.size<params.size-1 && !Modifier.isStatic(it.modifiers))
         }.forEach { allMethods.add(it) }
         cur = cur.superclass
     }
 
     var match: Method? = null
+    var matchCount: Double = 0.0
 
     outer@
     for(it in allMethods) {
+        val isStatic = Modifier.isStatic(it.modifiers)
         if(match==null) match = it
-        else if(it.parameterTypes.size<match.parameterTypes.size){
-            for(i in match.parameterTypes.indices)
-                if(i<params.size && !(getOrCreate(match.parameterTypes[i], params[i], true, false) as Boolean))
-                    continue@outer
-            match = it
+        else{
+            var percent: Double = 0.0
+            for(i in it.parameterTypes.indices) {
+                val got = (getOrCreate(it.parameterTypes[i], if(i<params.size) params[i + if(isStatic) 0 else 1] else null, true, false) as Double)
+                if (got==0.0) continue@outer
+                percent += got/it.parameterTypes.size
+            }
+            if(percent>matchCount){
+                match = it
+                matchCount = percent
+            }
         }
     }
     return match
@@ -353,20 +341,41 @@ fun getMethod(params: Array<Any?>, name: String, owner: Class<*>): Method? {
 fun invoke(call: Method, params: Array<Any?>): Any? {
     try{
         call.isAccessible = true
-        return call.invoke(if(call.modifiers and 8 == 0) params[0] else null, Array(call.parameterTypes.size - (((call.modifiers and 8) shr 3) and 0), { if(it + (if((call.modifiers and 8)==1) 0 else 1)>=params.size) null else getOrCreate(call.parameterTypes[0], params[it + (if((call.modifiers and 8)==1) 0 else 1)], true, true) }))
-    }catch(e: Exception){ return null }
+        val isStatic = Modifier.isStatic(call.modifiers)
+        val callParams = Array(if(call.parameterTypes.isNotEmpty()) call.parameterTypes.size - (if(isStatic) 0 else 1) else 0,
+                {
+                    if(it + (if(isStatic) 0 else 1)>=params.size) null
+                    else getOrCreate(call.parameterTypes[it], params[it + (if(isStatic) 0 else 1)], true, true)
+                })
+        return call.invoke(if(isStatic) null else params[0], *callParams)
+    }catch(e: Exception){ e.printStackTrace(); return null }
 }
 
 fun getOrCreate(matchType: Class<*>, param: Any?, ignoreSafety: Boolean, create: Boolean): Any? {
-    if(param==null || matchType.isAssignableFrom(param.javaClass)) { return if(create) param else return true }
+    if(param==null){
+        if(matchType.isPrimitive) return if(create && matchType==Boolean::class) false else if(create) 0.0.toNumber(getBoxed(matchType)) else 0.25
+        return if(create) param else 1
+    }
 
     // At this point, we know that "param" MUST be non-null
+    if(matchType.isAssignableFrom(param.javaClass)) return if(create) param else 1.0
+    if((matchType.isPrimitive || Number::class.java.isAssignableFrom(matchType)) && (param is String || param is Number)){
+        try{
+            java.lang.Double.parseDouble(param.toString())
+            @Suppress("UNCHECKED_CAST")
+            val v: Class<in Number> = getBoxed(matchType) as Class<in Number>
+            return if(create) param.toString().toDouble().toNumber(v) else 1.0
+        }catch(e: Exception){ e.printStackTrace() }  // Check if conversion is plausible
+    }
+
+    if(CharSequence::class.java.isAssignableFrom(matchType)) return if(create) param.toString() else 0.75
+
     matchType.declaredConstructors
             .filter { (ignoreSafety || it.isAccessible) && it.parameterTypes.size==1 && (it.parameterTypes[0].isAssignableFrom(param.javaClass) || it.parameterTypes[0].isPrimitive) }
             .forEach {
                 try{
                     it.isAccessible = true
-                    return if(create) it.newInstance(if(it.parameterTypes[0].isPrimitive){ if(it.parameterTypes[0]==Boolean::class.java) param.asBoolean() else param.asDouble().toNumber(it.parameterTypes[0])} else param) else true
+                    return if(create) it.newInstance(if(it.parameterTypes[0].isPrimitive){ if(it.parameterTypes[0]==Boolean::class.java) param.asBoolean() else param.asDouble().toNumber(it.parameterTypes[0])} else param) else 0.5
                 }catch (e: Exception){}
             }
     matchType.declaredMethods
@@ -374,8 +383,20 @@ fun getOrCreate(matchType: Class<*>, param: Any?, ignoreSafety: Boolean, create:
             .forEach {
                 try{
                     it.isAccessible = true
-                    return if(create) it.invoke(null, if(it.parameterTypes[0].isPrimitive){ if(it.parameterTypes[0]==Boolean::class.java) param.asBoolean() else param.asDouble().toNumber(it.parameterTypes[0])} else param) else true
+                    return if(create) it.invoke(null, if(it.parameterTypes[0].isPrimitive){ if(it.parameterTypes[0]==Boolean::class.java) param.asBoolean() else param.asDouble().toNumber(it.parameterTypes[0])} else param) else 0.5
                 }catch (e: Exception){}
             }
-    return if(create) null else false
+
+    return if(create) null else 0.0
+}
+
+fun getBoxed(c: Class<*>): Class<*> {
+    return if(c==Int::class.javaPrimitiveType) java.lang.Integer::class.java
+        else if(c==Short::class.javaPrimitiveType) java.lang.Short::class.java
+        else if(c==Float::class.javaPrimitiveType) java.lang.Float::class.java
+        else if(c==Float::class.javaPrimitiveType) java.lang.Float::class.java
+        else if(c==Double::class.javaPrimitiveType) java.lang.Double::class.java
+        else if(c==Byte::class.javaPrimitiveType) java.lang.Byte::class.java
+        else if(c==Char::class.javaPrimitiveType) java.lang.Character::class.java
+        else c
 }
