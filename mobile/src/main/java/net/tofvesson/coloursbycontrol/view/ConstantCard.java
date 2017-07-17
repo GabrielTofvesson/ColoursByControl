@@ -7,34 +7,32 @@ import android.os.Build;
 import android.support.annotation.Nullable;
 import android.support.annotation.RequiresApi;
 import android.util.AttributeSet;
+import net.tofvesson.coloursbycontrol.CodeBuilder;
+import net.tofvesson.coloursbycontrol.Operations;
 
-import net.tofvesson.libtlang.Routine;
-import net.tofvesson.libtlang.StackPush;
-
-public class StackPushCard extends ActionCard {
+public class ConstantCard extends ActionCard {
     protected static final String name = "Constant", help = "Click to edit...";
-    public Object push;
+    public String push;
     private final Rect tMeasure = new Rect();
 
-    public StackPushCard(Context c) {
+    public ConstantCard(Context c) {
         super(c);
     }
 
-    public StackPushCard(Context c, @Nullable AttributeSet a) {
+    public ConstantCard(Context c, @Nullable AttributeSet a) {
         super(c, a);
     }
 
-    public StackPushCard(Context c, @Nullable AttributeSet a, int d) {
+    public ConstantCard(Context c, @Nullable AttributeSet a, int d) {
         super(c, a, d);
     }
 
     @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
-    public StackPushCard(Context c, @Nullable AttributeSet a, int s, int r) {
+    public ConstantCard(Context c, @Nullable AttributeSet a, int s, int r) {
         super(c, a, s, r);
     }
 
-    @Override
-    public void processInstructions(Routine<?> r) { r.add(new StackPush(push)); }
+    @Override public void processInstructions(CodeBuilder c) { c.add(Operations.LDC, c.addConstant(push==null?"null":push)); }
 
     @Override
     protected void drawItems(Canvas canvas) {

@@ -6,6 +6,8 @@ import android.graphics.Paint;
 import android.support.annotation.Nullable;
 import android.util.AttributeSet;
 import android.view.View;
+
+import net.tofvesson.coloursbycontrol.CodeBuilder;
 import net.tofvesson.coloursbycontrol.R;
 import net.tofvesson.libtlang.Routine;
 
@@ -35,6 +37,6 @@ public abstract class ActionView extends View {
         }
     }
 
-    public abstract void processInstructions(Routine<?> r);
+    public abstract void processInstructions(CodeBuilder c);
     public abstract void onDraw(android.graphics.Canvas canvas);
 }
